@@ -1,2 +1,4 @@
-# VoiceAuth
-Voice Recognition Application
+Это веб-приложение является попыткой разработать голосовую аутентификацию. В процессе разработки я в команде с одногруппником пришел к тому, что проще всего будет использовать кепстральные коэффициенты, из-за чего были выбраны язык Python (Библиотека Librosa, как нам показалось, поможет решить задачу) и, соответсвенно, серверную оболочку на Flask. В конечном итоге мы не смогли реализовать механизм определения пользователя по тембру, но данное приложение отличает ритмический рисунок произносимых фраз/стуков и так далее.
+
+This web application is an attempt to develop voice authentication. In the process of development my teammate and I came to the conclusion that it would be easier to use cepstral coefficients, so we chose Python language (Librosa library, as it seemed to us, will help to solve the problem) and, accordingly, the server shell in Flask. In the end we could not implement a mechanism to identify the user by the timbre, but this application is distinguished by the rhythmic pattern of the spoken phrases/strokes and so on.
+

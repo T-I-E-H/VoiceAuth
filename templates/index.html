@@ -1,0 +1,127 @@
+<html>
+<head>
+  
+	<meta name="viewport" content="width=device-width,initial-scale=1">
+	<title>Голосовая аутентификация</title>
+	<link rel="stylesheet" href="{{ url_for('static', filename= 'css/style.css') }}">
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script>
+	<script src="{{ url_for('static', filename= 'scripts/audiodisplay.js')}}"></script>
+	<script src="{{ url_for('static', filename= 'scripts/recorder.js')}}"></script>
+	<script src="{{ url_for('static', filename= 'scripts/main.js')}}"></script>
+	
+</head>
+<script>
+  let pattern = /[\u0400-\u04FF]/;
+	var WORKER_PATH = "{{url_for('static', filename = 'scripts/recorderWorker.js')}}";
+	var Recorder = function(source, cfg){
+    var config = cfg || {};
+    var bufferLen = config.bufferLen || 4096;
+    this.context = source.context;
+    if(!this.context.createScriptProcessor){
+       this.node = this.context.createJavaScriptNode(bufferLen, 2, 2);
+    } else {
+       this.node = this.context.createScriptProcessor(bufferLen, 2, 2);
+    }
+   
+    var worker = new Worker(config.workerPath || WORKER_PATH);
+    worker.postMessage({
+      command: 'init',
+      config: {
+        sampleRate: this.context.sampleRate
+      }
+    });
+    var recording = false,
+      currCallback;
+
+    this.node.onaudioprocess = function(e){
+      if (!recording) return;
+      worker.postMessage({
+        command: 'record',
+        buffer: [
+          e.inputBuffer.getChannelData(0),
+          e.inputBuffer.getChannelData(1)
+        ]
+      });
+    }
+
+    this.configure = function(cfg){
+      for (var prop in cfg){
+        if (cfg.hasOwnProperty(prop)){
+          config[prop] = cfg[prop];
+        }
+      }
+    }
+
+    this.record = function(){
+      recording = true;
+    }
+
+    this.stop = function(){
+      recording = false;
+    }
+
+    this.clear = function(){
+      worker.postMessage({ command: 'clear' });
+    }
+
+    this.getBuffers = function(cb) {
+      currCallback = cb || config.callback;
+      worker.postMessage({ command: 'getBuffers' })
+    }
+
+    this.exportWAV = function(cb, type){
+      currCallback = cb || config.callback;
+      type = type || config.type || 'audio/wav';
+      if (!currCallback) throw new Error('Callback not set');
+      worker.postMessage({
+        command: 'exportWAV',
+        type: type
+      });
+    }
+
+
+    worker.onmessage = function(e){
+      var blob = e.data;
+      currCallback(blob);
+    }
+
+    source.connect(this.node);
+    this.node.connect(this.context.destination);
+  };
+
+  Recorder.setupDownload = async function(blob, filename){
+        var fd = new FormData();
+        fd.append('voice', blob, filename);
+        
+        const response = await fetch('/postmethod', {
+            method: 'POST',
+            contentType: 'audio/wav',
+            body: fd
+        });
+        const result = await response.json();
+        if(JSON.stringify(result)=='{"success":true}'){
+          window.alert("Здравствуйте, "+ document.getElementById('user-name').value);
+        }
+        else{
+          window.alert("Вы не "+ document.getElementById('user-name').value);
+        }
+  }
+</script>
+
+
+
+
+
+<body class = "auth" >
+	<div id="viz">
+		<canvas id="analyser" width="1024" height="500"></canvas>
+	</div>
+    <div class = "message">
+        <div>Как вас зовут?</div>
+        <input type="text" id = "user-name">
+    </div>
+	<div id="controls">
+		<img id="record" src="{{ url_for('static', filename= 'images/micro.png')}}" onclick="toggleRecording(this);">
+	</div>
+</body>
+</html>
